@@ -19,6 +19,15 @@
     th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
     th { background: #e8ecf1; }
     .count { margin-top: 12px; color: #444; }
+    button.secondary { color: var(--navy); background: #e8ecf1; }
+    button.small { padding: 5px 12px; font-size: 0.9rem; }
+    .extend-row td { background: #f8f9fb; }
+    .extend-form { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+    .extend-form textarea { width: 360px; max-width: 100%; min-height: 60px; padding: 8px; font: inherit; border: 1px solid var(--line); border-radius: 6px; margin-top: 4px; }
+    .field-error { color: #b4462b; font-size: 0.9rem; margin-top: 4px; min-height: 1em; }
+    .message { margin-top: 8px; padding: 8px; border-radius: 6px; }
+    .message.ok { background: #e6f4f1; border: 1px solid var(--teal); }
+    .message.error { background: #fdece7; border: 1px solid #E76F51; }
   </style>
 </head>
 <body>
@@ -52,7 +61,7 @@
     <div class="count" id="count"></div>
     <table>
       <thead>
-        <tr><th>Numurs</th><th>Statuss</th><th>Tēma</th><th>Saņemts</th><th>Termiņš</th><th>Kanāls</th></tr>
+        <tr><th>Numurs</th><th>Statuss</th><th>Tēma</th><th>Saņemts</th><th>Termiņš</th><th>Kanāls</th><th>Darbības</th></tr>
       </thead>
       <tbody id="rows"></tbody>
     </table>
@@ -60,6 +69,19 @@
   <script>
     const rows = document.getElementById("rows");
     const count = document.getElementById("count");
+
+    const ISSUE_TEXT = {
+      REQUIRED: "Obligāts lauks",
+      INVALID_FORMAT: "Nepareizs formāts vai par īss teksts",
+      TOO_LONG: "Pārāk garš teksts",
+    };
+    // Kļūdas teksts pēc API koda. Pārbaudi dara API, forma tikai parāda rezultātu.
+    const ERROR_TEXT = {
+      INVALID_DUE_DATE: "Šāds termiņš nav atļauts. Tam jābūt vēlākam par pašreizējo termiņu un šodienu un ne vēlākam par 4 mēnešiem no saņemšanas dienas.",
+      INVALID_STATE: "Šajā statusā termiņu pagarināt nevar.",
+      NOT_FOUND: "Iesniegums nav atrasts.",
+      VALIDATION_ERROR: "Pārbaudiet laukus.",
+    };
 
     function cell(text) {
       const td = document.createElement("td");
@@ -86,7 +108,113 @@
         const tr = document.createElement("tr");
         [s.id, s.status, s.topic, s.receivedAt.slice(0, 10), s.dueDate, s.replyChannel]
           .forEach((value) => tr.appendChild(cell(value)));
+        const actions = document.createElement("td");
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "small";
+        button.textContent = "Pagarināt";
+        button.addEventListener("click", () => toggleExtend(tr, s));
+        actions.appendChild(button);
+        tr.appendChild(actions);
         rows.appendChild(tr);
+      }
+    }
+
+    function toggleExtend(tr, submission) {
+      const open = tr.nextElementSibling;
+      if (open && open.classList.contains("extend-row")) {
+        open.remove();
+        return;
+      }
+      document.querySelectorAll(".extend-row").forEach((row) => row.remove());
+
+      const row = document.createElement("tr");
+      row.className = "extend-row";
+      const td = document.createElement("td");
+      td.colSpan = 7;
+      td.innerHTML = `
+        <form class="extend-form" novalidate>
+          <div>
+            <label>Jaunais termiņš
+              <input type="date" name="newDueDate">
+            </label>
+            <div class="field-error" data-for="newDueDate"></div>
+          </div>
+          <div>
+            <label>Iemesls (iedzīvotājs to redzēs paziņojumā)
+              <textarea name="reason"></textarea>
+            </label>
+            <div class="field-error" data-for="reason"></div>
+          </div>
+          <div>
+            <button type="submit">Saglabāt</button>
+            <button type="button" class="secondary" data-cancel>Atcelt</button>
+          </div>
+        </form>
+        <div class="message" hidden></div>`;
+      row.appendChild(td);
+      tr.after(row);
+
+      const form = td.querySelector("form");
+      const message = td.querySelector(".message");
+      form.querySelector("[data-cancel]").addEventListener("click", () => row.remove());
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        submitExtend(submission.id, form, message);
+      });
+      form.newDueDate.focus();
+    }
+
+    async function submitExtend(id, form, message) {
+      form.querySelectorAll(".field-error").forEach((el) => (el.textContent = ""));
+      message.hidden = true;
+      const payload = Object.fromEntries(new FormData(form).entries());
+      // Tukšus laukus nesūtām: API pats pasaka, kas trūkst.
+      for (const key of Object.keys(payload)) {
+        if (payload[key] === "") delete payload[key];
+      }
+      const saveButton = form.querySelector('button[type="submit"]');
+      saveButton.disabled = true;
+      try {
+        const response = await fetch(`/submissions/${encodeURIComponent(id)}/extend`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        let body = null;
+        try { body = await response.json(); } catch (e) { /* nav JSON */ }
+        if (response.ok) {
+          await load();
+          const updated = [...rows.children].find((tr) => tr.firstChild.textContent === id);
+          if (updated) {
+            const note = document.createElement("tr");
+            note.className = "extend-row";
+            const text = cell(`Termiņš pagarināts līdz ${body.dueDate}.`);
+            text.colSpan = 7;
+            note.appendChild(text);
+            updated.after(note);
+          }
+          return;
+        }
+        const error = (body && body.error) || {};
+        const unknown = [];
+        for (const detail of error.details || []) {
+          const target = form.querySelector(`.field-error[data-for="${detail.field}"]`);
+          const text = ISSUE_TEXT[detail.issue] || detail.issue;
+          if (target) target.textContent = text;
+          else unknown.push(`${detail.field}: ${text}`);
+        }
+        message.className = "message error";
+        message.textContent =
+          `Termiņš nav pagarināts (HTTP ${response.status}${error.code ? ", " + error.code : ""}). ` +
+          (ERROR_TEXT[error.code] || "") + (unknown.length ? " " + unknown.join("; ") : "");
+        message.hidden = false;
+      } catch (error) {
+        message.className = "message error";
+        message.textContent = "Neizdevās sazināties ar serveri.";
+        message.hidden = false;
+      } finally {
+        saveButton.disabled = false;
       }
     }
 
