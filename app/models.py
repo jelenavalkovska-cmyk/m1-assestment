@@ -9,6 +9,8 @@ from pydantic_core import PydanticCustomError
 
 # CR-1: 11 cipari vai DDMMYY-NNNNN. Tikai formāts, bez kontrolcipara.
 PERSONAL_CODE = re.compile(r"[0-9]{6}-?[0-9]{5}")
+# CR-C: datums tikai formātā YYYY-MM-DD (ne laikspiedols, ne datums ar laiku).
+ISO_DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 
 
 class PreferredChannel(str, Enum):
@@ -92,6 +94,34 @@ class SubmissionListItem(BaseModel):
     receivedAt: datetime
     dueDate: date
     replyChannel: ReplyChannel
+
+
+# CR-C: vismaz 10 rakstzīmes bez atstarpēm (burti, cipari, simboli).
+# Augšējā robeža pēc līguma maxLength: kopējais garums ar atstarpēm.
+REASON_MIN_CHARS = 10
+REASON_MAX_LENGTH = 500
+
+
+class ExtendRequest(BaseModel):
+    newDueDate: date
+    reason: str
+
+    @field_validator("newDueDate", mode="before")
+    @classmethod
+    def check_date_format(cls, value):
+        if not isinstance(value, str) or not ISO_DATE.fullmatch(value):
+            raise PydanticCustomError("invalid_format", "Nepareizs datuma formāts")
+        return value
+
+    @field_validator("reason")
+    @classmethod
+    def check_reason_length(cls, value: str) -> str:
+        value = value.strip()
+        if len(value) > REASON_MAX_LENGTH:
+            raise PydanticCustomError("string_too_long", "Iemesls ir par garu")
+        if sum(1 for char in value if not char.isspace()) < REASON_MIN_CHARS:
+            raise PydanticCustomError("string_too_short", "Iemesls ir par īsu")
+        return value
 
 
 class AuditEntry(BaseModel):

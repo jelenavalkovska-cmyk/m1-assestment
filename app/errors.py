@@ -9,6 +9,14 @@ class SubmissionNotFound(Exception):
     pass
 
 
+class InvalidState(Exception):
+    pass
+
+
+class InvalidDueDate(Exception):
+    pass
+
+
 def _field(error: dict) -> str:
     # loc piemērs: ("body", "personalCode"). Pirmais elements ir vieta pieprasījumā.
     if error["type"] == "json_invalid":
@@ -44,6 +52,16 @@ def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(SubmissionNotFound)
     async def not_found(request: Request, exc: SubmissionNotFound):
         return error_response(404, "NOT_FOUND", "Submission not found")
+
+    @app.exception_handler(InvalidState)
+    async def invalid_state(request: Request, exc: InvalidState):
+        return error_response(
+            409, "INVALID_STATE", "Action not allowed in the current status"
+        )
+
+    @app.exception_handler(InvalidDueDate)
+    async def invalid_due_date(request: Request, exc: InvalidDueDate):
+        return error_response(400, "INVALID_DUE_DATE", "New due date is not allowed")
 
     @app.exception_handler(Exception)
     async def unexpected_error(request: Request, exc: Exception):

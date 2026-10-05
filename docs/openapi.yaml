@@ -286,9 +286,9 @@ paths:
         Darbinieks pagarina atbildes termiņu un norāda iemeslu. Atļauts no
         statusiem `RECEIVED` un `IN_PROGRESS`; citādi 409.
 
-        `newDueDate` jābūt vēlākam par pašreizējo `dueDate` un ne vēlākam
-        par 4 mēnešiem pēc saņemšanas dienas (robeža iekļauta). Citādi 400
-        `INVALID_DUE_DATE`.
+        `newDueDate` jābūt vēlākam par pašreizējo `dueDate`, vēlākam par
+        šodienu (UTC) un ne vēlākam par 4 mēnešiem pēc saņemšanas dienas
+        (robeža iekļauta). Citādi 400 `INVALID_DUE_DATE`.
 
         Audita ieraksts: darbība `EXTEND`, `detail` ir iemesls.
       parameters:
