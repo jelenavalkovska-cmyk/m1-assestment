@@ -41,8 +41,8 @@ Dažreiz atbildes sagatavošanai vajag vairāk laika, piemēram, jāsaņem citas
 | No kura datuma skaita 4 mēnešus? | No `receivedAt` datuma (UTC) | Produkta īpašnieks, 2026-10-02 |
 | Vai jaunajam termiņam jābūt darba dienai? | Nē. To pārbauda darbinieks. | Produkta īpašnieks, 2026-10-02 |
 | Vai termiņu drīkst pagarināt vairākas reizes? | Jā, ja katru reizi izpildās kritēriji | Produkta īpašnieks, 2026-10-02 |
-| Kā skaitīt 4 mēnešus, ja mērķa mēnesī nav saņemšanas dienas datuma? Piemēri: saņemts 31. oktobrī (februārī nav 31. datuma) vai 31. maijā (septembrī nav 31. datuma). | 
-| Par cik dienām pagarināt? | Pagarinām par 1 nedēļu, ja izpildās kritērijs par 4 mēnēšiem | Īlgāk nevajag |
+| Kā skaitīt 4 mēnešus, ja mērķa mēnesī nav saņemšanas dienas datuma? Piemēri: saņemts 31. oktobrī (februārī nav 31. datuma) vai 31. maijā (septembrī nav 31. datuma). | Piemērs: 31.10.2026 + 4 mēneši = 03.03.2027 | Produkta īpašnieks, 05.10.2026. |
+
 
 ## Ārpus tvēruma (out of scope)
 
