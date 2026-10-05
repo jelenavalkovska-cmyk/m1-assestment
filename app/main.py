@@ -193,7 +193,8 @@ def extend_submission(submission_id: str, data: ExtendRequest) -> Submission:
     received_on = datetime.fromisoformat(record["receivedAt"]).astimezone(UTC).date()
     current_due = date.fromisoformat(record["dueDate"])
     limit = add_months(received_on, MAX_EXTEND_MONTHS)
-    if not current_due < data.newDueDate <= limit:
+    earliest_after = max(current_due, clock.now().date())  # ne pagātnē, ne šodien
+    if not earliest_after < data.newDueDate <= limit:
         raise InvalidDueDate()
 
     record = storage.update_due_date(submission_id, data.newDueDate.isoformat())

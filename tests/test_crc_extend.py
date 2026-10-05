@@ -251,3 +251,36 @@ def test_extend_reason_is_stripped_before_length_check(client, submission):
     assert extend(client, submission["id"], reason=reason).status_code == 200
     audit = client.get(f"/submissions/{submission['id']}/audit").json()
     assert audit[-1]["detail"] == "x" * 500
+
+
+@pytest.mark.parametrize(
+    "new_due_date, status",
+    [
+        ("2026-10-04", 400),  # vakar
+        ("2026-10-05", 400),  # šodien
+        ("2026-10-06", 200),  # rīt
+    ],
+)
+def test_extend_due_date_must_be_after_today(
+    client, valid_payload, monkeypatch, new_due_date, status
+):
+    """Termiņš pagājis (31.07.), robeža 01.11. Šodien 05.10.: tikai no rītdienas."""
+    record = storage.add(
+        {
+            **valid_payload,
+            "status": "IN_PROGRESS",
+            "receivedAt": "2026-07-01T07:20:00+00:00",
+            "dueDate": "2026-07-31",
+            "replyChannel": "EMAIL",
+            "reasonCode": None,
+        }
+    )
+    today = datetime(2026, 10, 5, 23, 59, 59, tzinfo=timezone.utc)
+    monkeypatch.setattr(clock, "now", lambda: today)
+
+    response = extend(client, record["id"], new_due_date)
+
+    assert response.status_code == status
+    if status == 400:
+        assert response.json()["error"]["code"] == "INVALID_DUE_DATE"
+        assert due_date(client, record["id"]) == "2026-07-31"
