@@ -70,6 +70,8 @@
     const rows = document.getElementById("rows");
     const count = document.getElementById("count");
 
+    // Statusi, kuros pogu "Pagarināt" rāda. Galīgo pārbaudi dara API (409 INVALID_STATE).
+    const EXTENDABLE = ["RECEIVED", "IN_PROGRESS"];
     const ISSUE_TEXT = {
       REQUIRED: "Obligāts lauks",
       INVALID_FORMAT: "Nepareizs formāts vai par īss teksts",
@@ -109,12 +111,14 @@
         [s.id, s.status, s.topic, s.receivedAt.slice(0, 10), s.dueDate, s.replyChannel]
           .forEach((value) => tr.appendChild(cell(value)));
         const actions = document.createElement("td");
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "small";
-        button.textContent = "Pagarināt";
-        button.addEventListener("click", () => toggleExtend(tr, s));
-        actions.appendChild(button);
+        if (EXTENDABLE.includes(s.status)) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "small";
+          button.textContent = "Pagarināt";
+          button.addEventListener("click", () => toggleExtend(tr, s));
+          actions.appendChild(button);
+        }
         tr.appendChild(actions);
         rows.appendChild(tr);
       }
